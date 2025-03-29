@@ -1,15 +1,27 @@
-require('dotenv').config(); // Cargar las variables de entorno
+require('dotenv').config(); 
 
 const express = require('express');
 const bodyParser = require('body-parser');
 const verificarJWT = require('./middleware/jwt');
+const serverless = require('serverless-http');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Usar el puerto del .env o 3000 por defecto
+const PORT = process.env.PORT || 3000; 
 
 app.use(bodyParser.json());
 
-// Función para calcular estadísticas de las matrices
+app.use((req, res, next) => {
+    if (req.apiGateway && req.apiGateway.event.body) {
+        try {
+            req.body = JSON.parse(req.apiGateway.event.body);
+        } catch (error) {
+            console.error("Error al parsear el body:", error);
+            return res.status(400).json({ error: "Cuerpo de la solicitud no es un JSON válido" });
+        }
+    }
+    next();
+});
+
 function calcularEstadisticas(matrices) {
     let valores = matrices.flat(2);
     let maximo = Math.max(...valores);
@@ -20,7 +32,6 @@ function calcularEstadisticas(matrices) {
     return { maximo, minimo, suma, promedio };
 }
 
-// Función para verificar si una matriz es diagonal
 function esMatrizDiagonal(matriz) {
     for (let i = 0; i < matriz.length; i++) {
         for (let j = 0; j < matriz[i].length; j++) {
@@ -33,12 +44,14 @@ function esMatrizDiagonal(matriz) {
 }
 
 app.post('/calcular-estadisticas', verificarJWT, (req, res) => {
+
     try {
-        const { Q, R } = req.body;
+        let { Q, R } = req.body;
+
         if (!Q || !R) {
             return res.status(400).json({ error: 'Las matrices Q y R son requeridas' });
         }
-        
+
         const estadisticas = calcularEstadisticas([Q, R]);
         const esDiagonalQ = esMatrizDiagonal(Q);
         const esDiagonalR = esMatrizDiagonal(R);
@@ -52,10 +65,9 @@ app.post('/calcular-estadisticas', verificarJWT, (req, res) => {
             esDiagonalR
         });
     } catch (error) {
+        console.error("Error:", error);
         res.status(500).json({ error: 'Error procesando la solicitud' });
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+module.exports.handler = serverless(app);

@@ -1,0 +1,31 @@
+service: api-node-matriz
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  environment:
+    SECRET_KEY: ${ssm:/matriz/jwt-secret}
+
+functions:
+  app:
+    handler: src/index.handler
+    events:
+      - http:
+          path: calcular-estadisticas
+          method: post
+          cors: true
+          integration: lambda-proxy
+          request:
+            passThrough: WHEN_NO_MATCH
+            template:
+              application/json: |
+                {
+                  "body" : $input.json('$'),
+                  "headers": {
+                    "Content-Type": "application/json"
+                  }
+                }
+
+plugins:
+  - serverless-offline
