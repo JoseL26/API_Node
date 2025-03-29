@@ -1,9 +1,11 @@
+require('dotenv').config(); // Cargar las variables de entorno
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const verificarJWT = require('./middleware/jwt');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Usar el puerto del .env o 3000 por defecto
 
 app.use(bodyParser.json());
 
